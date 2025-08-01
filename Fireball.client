@@ -1,0 +1,114 @@
+local RunService = game:GetService("RunService")
+local Debris = game:GetService("Debris")
+local TweenService = game:GetService("TweenService")
+
+return table.freeze({
+	["Fire"] = function(Parameters)
+		local Origin = Parameters.Origin :: BasePart
+		local Direction = Parameters.Direction :: CFrame
+		local UniqueID = Parameters.UniqueID :: string
+		
+		if not Origin or not Direction or not UniqueID then return end
+		
+		local Fireball = Instance.new("Part")
+		Fireball.Anchored = true
+		Fireball.CanCollide = false
+		Fireball.Transparency = 0.35
+		Fireball.Shape = "Ball"
+		Fireball.Color = Color3.fromRGB(189, 103, 42)
+		Fireball.Material = Enum.Material.Neon
+		Fireball.Size = vector.create(2.5, 2.5, 2.5)
+		Fireball.CFrame = Origin.CFrame * CFrame.new(0, 0, -Fireball.Size.Z / 2)
+		Fireball.Name = UniqueID
+
+		Fireball.Parent = workspace.Effects
+		
+		local Fire = Instance.new("Fire")
+		Fire.Heat = 5
+		
+		Fire.Parent = Fireball
+		
+		local OverlapParameters = OverlapParams.new()
+		OverlapParameters.FilterType = Enum.RaycastFilterType.Exclude
+		OverlapParameters.FilterDescendantsInstances = {workspace.Hitboxes, workspace.Effects, Origin.Parent}
+		
+		local FirstTick = tick()
+		local Active = true
+		local Connection
+		
+		local function UndoFireball()
+			Fireball.Transparency = 1
+			Fire.Enabled = false
+			
+			Debris:AddItem(Fireball, 5)
+		end
+
+		Connection = RunService.Heartbeat:Connect(function(DeltaTime)
+			local LastTick = tick()
+
+			if LastTick - FirstTick > 1.25 then
+				Active = false
+			else
+				Fireball.CFrame = CFrame.new(Fireball.Position, Direction.Position) + Direction.LookVector * (DeltaTime * 60)
+			end
+			
+			local Hits = workspace:GetPartsInPart(Fireball, OverlapParameters)
+			
+			if #Hits > 0 then	
+				Active = false
+			end
+			
+			if not Active then
+				Connection:Disconnect()
+				
+				UndoFireball()
+			end
+		end)
+	end,
+	["Explode"] = function(Parameters)
+		local Position = Parameters.Position :: vector
+		local UniqueID = Parameters.UniqueID :: string
+		
+		if not Position or not UniqueID then return end
+		
+		if workspace.Effects:FindFirstChild(UniqueID) then
+			local OldFireball = workspace.Effects:FindFirstChild(UniqueID)
+			local Fire = OldFireball:FindFirstChild("Fire")
+			
+			if Fire and Fire.Enabled == true then
+				Fire.Enabled = false
+				
+				Debris:AddItem(OldFireball, 5)
+			elseif not Fire then
+				OldFireball:Destroy()
+			end
+		end
+		
+		local Explosion = Instance.new("Explosion")
+		Explosion.BlastRadius = 0
+		Explosion.BlastPressure = 0
+		Explosion.DestroyJointRadiusPercent = 0
+		Explosion.Position = Position
+		
+		Explosion.Parent = workspace.Effects
+		
+		local ExplosionShockwave = Instance.new("Part")
+		ExplosionShockwave.Anchored = true
+		ExplosionShockwave.CanCollide = false
+		ExplosionShockwave.Transparency = 0.5
+		ExplosionShockwave.Shape = "Ball"
+		ExplosionShockwave.Color = Color3.fromRGB(189, 103, 42)
+		ExplosionShockwave.Material = Enum.Material.Neon
+		ExplosionShockwave.Size = vector.create(2.5, 2.5, 2.5)
+		ExplosionShockwave.Position = Position
+		ExplosionShockwave.Name = UniqueID
+		
+		ExplosionShockwave.Parent = workspace.Effects
+		
+		local Expand = TweenService:Create(ExplosionShockwave, TweenInfo.new(0.5), {Size = vector.create(25, 25, 25), Transparency = 1})
+		Expand:Play()
+		
+		Debris:AddItem(ExplosionShockwave, 0.5)
+		Debris:AddItem(Explosion, 5)
+	end,
+})

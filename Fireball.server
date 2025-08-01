@@ -1,4 +1,3 @@
-```lua
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local HttpsService = game:GetService("HttpService")
@@ -86,5 +85,3 @@ function FireballServer.Init(Player : Player, Mouse : CFrame)
 end
 
 return FireballServer
-
-```

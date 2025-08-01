@@ -1,0 +1,30 @@
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Remotes = ReplicatedStorage:WaitForChild("Remotes")
+local Skills = Remotes:WaitForChild("Skills")
+
+--// Loading modules
+
+local SkillsModule = {}
+
+for _, Module in pairs(script:GetChildren()) do
+	SkillsModule[Module.Name] = require(Module)
+end
+
+--// Skills handler
+
+Skills.OnServerEvent:Connect(function(Player : Player, Action : string, Mouse : CFrame)
+	local Character = Player.Character :: Model
+	
+	if Character and Action and Mouse then
+		local Humanoid = Character:FindFirstChildOfClass("Humanoid") :: Humanoid
+		
+		if Humanoid and Humanoid.Health > 0 then
+			local Skill = SkillsModule[Action]
+			
+			if Skill then
+				Skill.Init(Player, Mouse)
+			end
+		end
+	end
+end)

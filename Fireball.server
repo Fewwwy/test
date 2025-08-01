@@ -1,0 +1,90 @@
+```lua
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local HttpsService = game:GetService("HttpService")
+
+local Remotes = ReplicatedStorage:WaitForChild("Remotes")
+local Replicator = Remotes:WaitForChild("Replicator")
+
+local FireballServer = {}
+
+function FireballServer.Init(Player : Player, Mouse : CFrame)
+	
+	local UniqueID = HttpsService:GenerateGUID(false)
+	local Character = Player.Character :: Model
+
+	local HumanoidRootPart = Character.HumanoidRootPart :: BasePart
+
+	local Hitbox = Instance.new("Part")
+	Hitbox.Anchored = true
+	Hitbox.CanCollide = false
+	Hitbox.Transparency = 1
+	Hitbox.Shape = "Ball"
+	Hitbox.Size = vector.create(2.5, 2.5, 2.5)
+	Hitbox.CFrame = HumanoidRootPart.CFrame * CFrame.new(0, 0, -Hitbox.Size.Z / 2)
+
+	Hitbox.Parent = workspace.Hitboxes
+	
+	Replicator:FireAllClients("Fireball", "Fire", {Origin = HumanoidRootPart, Direction = Mouse, UniqueID = UniqueID})
+	
+	local OverlapParameters = OverlapParams.new()
+	OverlapParameters.FilterType = Enum.RaycastFilterType.Exclude
+	OverlapParameters.FilterDescendantsInstances = {workspace.Hitboxes, Character}
+
+	local FirstTick = tick()
+	local TaggedEnemies = {}
+	local Explode = false
+	local Connection
+	
+	Connection = RunService.Heartbeat:Connect(function(DeltaTime)
+		local LastTick = tick()
+
+		if LastTick - FirstTick > 1.25 then
+			Explode = true
+		else
+			local Direction = CFrame.new(Hitbox.Position, Mouse.Position)
+			local MouseDirection = Mouse.LookVector
+			local FrameTime = (DeltaTime * 60)
+			
+			Hitbox.CFrame = Direction + MouseDirection * FrameTime 
+		end
+		
+		local Hits = workspace:GetPartsInPart(Hitbox, OverlapParameters)
+
+		if #Hits > 0 then	
+			Explode = true
+		end
+		
+		if Explode then
+			Replicator:FireAllClients("Fireball", "Explode", {Position = Hitbox.Position, UniqueID = UniqueID})
+			
+			Hitbox.Size = vector.create(25, 25, 25)
+			
+			Hits = workspace:GetPartsInPart(Hitbox, OverlapParameters)
+			
+			for _, Enemy in pairs(Hits) do
+				local EnemyCharacter = Enemy.Parent :: Model
+
+				if EnemyCharacter:FindFirstChildOfClass("Humanoid") and EnemyCharacter:FindFirstChild("HumanoidRootPart") and EnemyCharacter ~= Character and not table.find(TaggedEnemies, EnemyCharacter) then
+					local EnemyRoot = EnemyCharacter:FindFirstChild("HumanoidRootPart") :: BasePart
+					local EnemyHumanoid = EnemyCharacter:FindFirstChildOfClass("Humanoid") :: Humanoid
+
+					EnemyHumanoid:TakeDamage(10)
+					
+					local Direction = (EnemyRoot.Position - Hitbox.Position).Unit
+					local Strength = 125
+					
+					EnemyRoot.AssemblyLinearVelocity = Direction * Strength + vector.create(0, 25, 0)
+					
+					table.insert(TaggedEnemies, EnemyCharacter)
+				end
+			end
+			
+			Connection:Disconnect()
+		end
+	end)
+end
+
+return FireballServer
+
+```

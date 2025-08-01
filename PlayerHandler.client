@@ -1,0 +1,72 @@
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
+local Players = game:GetService("Players")
+
+local Remotes = ReplicatedStorage:WaitForChild("Remotes")
+
+local SkillsEvent = Remotes:WaitForChild("Skills")
+local Replicator = Remotes:WaitForChild("Replicator")
+
+local Player = Players.LocalPlayer :: Player
+local Character = Player.Character or Player.CharacterAdded:Wait() :: Model
+
+local Mouse = Player:GetMouse()
+
+--// Skills informations
+
+local Skills = {
+	["Fireball"] = {
+		Cooldown = 5,
+		CooldownActive = false
+	}
+}
+
+
+--// Input
+
+local Inputs = {
+	["One"] = "Fireball",
+}
+
+
+UserInputService.InputBegan:Connect(function(Input : InputObject, GPe : boolean)
+	if GPe then return end
+	
+	local InputName = Input.KeyCode ~= Enum.KeyCode.Unknown and Input.KeyCode.Name or Input.UserInputType.Name
+	
+	if InputName and Inputs[InputName] then
+		local Action = Inputs[InputName]
+		
+		if Skills[Action] then
+			local SkillInfo = Skills[Action]
+			
+			if SkillInfo.CooldownActive then return end
+			
+			SkillsEvent:FireServer(Action, Mouse.Hit)
+			
+			SkillInfo.CooldownActive = true
+			
+			task.delay(SkillInfo.Cooldown, function()
+				SkillInfo.CooldownActive = false
+			end)
+		end
+	end
+end)
+
+--// Replicator
+
+local EffectsModule = {}
+
+for _, Module in pairs(script:GetChildren()) do
+	EffectsModule[Module.Name] = require(Module)
+end
+
+Replicator.OnClientEvent:Connect(function(Module : string, Effect : string, Parameters : { unknown })
+	if Effect and Parameters then
+		local EffectModule = EffectsModule[Module]
+
+		if EffectModule and EffectModule[Effect] then
+			EffectModule[Effect](Parameters)
+		end
+	end
+end)
